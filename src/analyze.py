@@ -97,7 +97,8 @@ def _representative_examples(texts: list[str], *, k: int = 3) -> list[int]:
         return []
     vec = TfidfVectorizer(stop_words="english", max_features=1500)
     X = vec.fit_transform(texts)
-    centroid = X.mean(axis=0)
+    # X.mean(axis=0) returns an np.matrix; sklearn rejects that in newer numpy.
+    centroid = np.asarray(X.mean(axis=0))
     sims = cosine_similarity(X, centroid)
     order = np.argsort(-sims.ravel())
     picks: list[int] = []
