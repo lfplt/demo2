@@ -26,10 +26,11 @@ def sentiment_from_text(text: str) -> ReviewSignal:
     pol = float(blob.sentiment.polarity)
     sub = float(blob.sentiment.subjectivity)
 
-    # Calibrated to be conservative about "neutral"
-    if pol <= -0.15:
+    # Fast-casual reviews are often short; keep "neutral" wide,
+    # and avoid classifying mild praise/complaints too strongly.
+    if pol <= -0.10:
         label = "negative"
-    elif pol >= 0.20:
+    elif pol >= 0.25:
         label = "positive"
     else:
         label = "neutral"
@@ -39,10 +40,33 @@ def sentiment_from_text(text: str) -> ReviewSignal:
 RISK_PATTERNS: list[tuple[str, str]] = [
     ("legal_threat", r"\b(sue|lawsuit|attorney|lawyer|legal action|small claims)\b"),
     ("refund_chargeback", r"\b(chargeback|dispute the charge|refund|scam|fraud)\b"),
-    ("safety_hygiene", r"\b(mold|roaches|rats|unsafe|hazard|poison|food poisoning)\b"),
+    ("food_safety_illness", r"\b(food poisoning|got sick|made me sick|sick from|vomit|throw up|diarrhea|nausea)\b"),
+    ("allergens", r"\b(allerg|gluten|celiac|nuts?\b|peanut|shellfish|cross[- ]?contaminat)\w*\b"),
+    ("foreign_object", r"\b(hair|glass|plastic|metal|bug|insect)\b"),
+    ("cleanliness", r"\b(dirty|filthy|bathroom|restroom|flies|mold|roaches|rats)\b"),
+    ("safety_hygiene", r"\b(unsafe|hazard|poison)\b"),
     ("harassment_bias", r"\b(racist|sexist|harass|harassment|discriminat)\w*\b"),
     ("privacy", r"\b(dox|doxx|posted my|shared my)\b"),
 ]
+
+
+THEME_PATTERNS: dict[str, str] = {
+    "speed_wait_time": r"\b(wait(ed|ing)?|line|slow|took forever|(\d+)\s*(min|minutes))\b",
+    "service_staff": r"\b(rude|friendly|helpful|ignored|attitude|service)\b",
+    "order_accuracy": r"\b(wrong order|missing|forgot|left out|cold fries|no sauce)\b",
+    "food_quality": r"\b(cold|hot|fresh|stale|burnt|undercooked|overcooked|salty|bland|dry)\b",
+    "cleanliness": r"\b(dirty|clean|bathroom|restroom|table|floor|flies)\b",
+    "value_pricing": r"\b(overpriced|price|expensive|value|worth it)\b",
+}
+
+
+def theme_tags(text: str) -> list[str]:
+    t = (text or "").lower()
+    tags: list[str] = []
+    for name, pat in THEME_PATTERNS.items():
+        if re.search(pat, t, re.IGNORECASE):
+            tags.append(name)
+    return tags
 
 
 def risk_flags(text: str) -> list[str]:
@@ -118,6 +142,7 @@ class Analysis:
     avg_rating: Optional[float]
     top_positive_themes: list[str]
     top_negative_themes: list[str]
+    theme_counts: dict[str, int]
     highlights_positive: list[str]
     highlights_negative: list[str]
     risk_counts: dict[str, int]
@@ -153,12 +178,17 @@ def analyze_reviews(reviews: Iterable[Review]) -> Analysis:
     for r in reviews:
         rc.update(risk_flags(r.text))
 
+    tc = Counter()
+    for r in reviews:
+        tc.update(theme_tags(r.text))
+
     return Analysis(
         total=total,
         counts={"negative": counts.get("negative", 0), "neutral": counts.get("neutral", 0), "positive": counts.get("positive", 0)},
         avg_rating=avg_rating,
         top_positive_themes=top_positive_themes,
         top_negative_themes=top_negative_themes,
+        theme_counts=dict(sorted(tc.items(), key=lambda x: (-x[1], x[0]))),
         highlights_positive=highlights_positive,
         highlights_negative=highlights_negative,
         risk_counts=dict(sorted(rc.items(), key=lambda x: (-x[1], x[0]))),

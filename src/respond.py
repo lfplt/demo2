@@ -55,47 +55,53 @@ def draft_response(review: Review, voice: BrandVoice) -> Draft:
     business = (voice.business_name or "Our business").strip()
     signoff = (voice.signoff_name or "Team").strip()
     tone = (voice.tone or "Warm & professional").strip()
+    contact_line = (voice.contact_line or "").strip()
 
     # Keep replies short and professional; do not quote the whole review.
     if s.sentiment == "positive":
         body = (
-            f"Thanks so much for the kind words and for choosing {business}. "
-            "We’re really glad you had a great experience. "
-            "If there’s anything we can do for you in the future, we’re here to help."
+            f"Thanks for the love - and for choosing {business}! "
+            "We're happy you had a great visit."
         )
-        cta = "We’d love to see you again soon."
+        cta = "Hope to see you again soon!"
     elif s.sentiment == "neutral":
         body = (
-            f"Thanks for taking the time to leave a review. "
-            f"We appreciate you choosing {business}, and we’re always working to improve."
+            f"Thanks for taking the time to leave a review and for choosing {business}. "
+            "We're always working to get better."
         )
-        cta = "If you’re open to it, share what we could do better next time."
+        cta = "If you share what we could do better next time, we'll take it seriously."
     else:
         body = (
-            "Thanks for the feedback, and I’m sorry to hear your experience didn’t meet expectations. "
-            "We’d like to understand what happened and make things right."
+            "Thanks for the feedback - we're sorry your visit wasn't great. "
+            "We'd like to look into it and make it right."
         )
-        cta = "Please contact us directly so we can help."
+        cta = "Please reach out so we can help."
 
     # Risk-aware tweaks.
     risk_notes: list[str] = []
     if "privacy" in flags:
         risk_notes.append("Avoid discussing personal details publicly; invite offline.")
-        cta = "Please contact us directly so we can help privately."
+        cta = "Please reach out directly so we can help privately."
     if "legal_threat" in flags:
         risk_notes.append("Keep it calm and brief; invite offline; avoid debate.")
         body = (
             "Thanks for the note. We take concerns seriously and would like to look into this."
         )
-        cta = "Please contact us directly so we can review the details."
+        cta = "Please reach out directly so we can review the details."
     if "refund_chargeback" in flags:
         risk_notes.append("Don’t promise refunds publicly; direct to support channel.")
-        cta = "Please contact us directly so we can review your order and help."
-    if "safety_hygiene" in flags:
-        risk_notes.append("Acknowledge concern; invite offline; avoid defensiveness.")
-        cta = "Please contact us directly so we can follow up right away."
+        cta = "Please reach out directly so we can review and help."
 
-    resp = f"{body} {cta}\n\n— {signoff}"
+    if any(f in flags for f in ["food_safety_illness", "allergens", "foreign_object", "cleanliness", "safety_hygiene"]):
+        risk_notes.append("Food safety / hygiene concern: acknowledge + route offline quickly.")
+        body = (
+            "Thanks for letting us know - we're sorry to hear this. "
+            "We take food safety and cleanliness seriously and want to follow up right away."
+        )
+        cta = "Please reach out directly with the date/time of your visit so we can investigate."
+
+    offline = f" {contact_line}" if contact_line else ""
+    resp = f"{body} {cta}{offline}\n\n- {signoff}"
 
     # Apply safety filters.
     resp = _redact_personal_data(resp)
@@ -126,5 +132,6 @@ def response_style_preview(voice: BrandVoice) -> str:
         f"Tone: {voice.tone}\n"
         f"Values: {voice.values}\n"
         f"Do-not-say: {voice.do_not_say}\n"
+        f"Contact line: {voice.contact_line}\n"
     )
 

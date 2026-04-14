@@ -21,4 +21,6 @@ class BrandVoice:
     tone: str = "Warm & professional"
     values: str = "Helpful, respectful, solution-oriented"
     do_not_say: str = "Do not mention refunds unless you intend to offer one"
+    # Optional: used for negative/risk reviews to route offline.
+    contact_line: str = ""
 

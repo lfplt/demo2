@@ -29,12 +29,18 @@ def run() -> None:
             value="Don’t mention refunds publicly unless you intend to offer one.",
             height=60,
         )
+        contact_line = st.text_input(
+            "Contact line (optional, for negative/risk replies)",
+            value="",
+            placeholder="e.g. Call us at (555) 123-4567 or email support@yourbiz.com",
+        )
         voice = BrandVoice(
             business_name=business_name,
             signoff_name=signoff_name,
             tone=tone,
             values=values,
             do_not_say=do_not_say,
+            contact_line=contact_line,
         )
         with st.expander("Voice preview"):
             st.code(response_style_preview(voice))
@@ -133,17 +139,27 @@ def run() -> None:
             else:
                 st.write("No obvious risk keywords detected.")
 
+            st.markdown("**Restaurant themes (keyword buckets)**")
+            if a.theme_counts:
+                st.json(a.theme_counts)
+            else:
+                st.write("No theme keywords detected yet.")
+
     with tab3:
         st.subheader("Reply drafts")
         if not reviews:
             st.info("Load reviews first.")
         else:
-            max_show = st.slider(
-                "How many reviews to draft replies for",
-                min_value=5,
-                max_value=min(50, len(reviews)),
-                value=min(15, len(reviews)),
-            )
+            n_reviews = len(reviews)
+            if n_reviews <= 1:
+                max_show = n_reviews
+            else:
+                max_show = st.slider(
+                    "How many reviews to draft replies for",
+                    min_value=1,
+                    max_value=min(50, n_reviews),
+                    value=min(15, n_reviews),
+                )
             drafts = draft_replies(reviews, voice=voice, limit=max_show)
             for idx, (r, d) in enumerate(zip(reviews[:max_show], drafts), start=1):
                 with st.expander(f"{idx}. {d.sentiment.upper()} — Draft reply", expanded=False):
