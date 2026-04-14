@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Streamlit
+# Keep config in repo, ignore runtime cache.
+.streamlit/secrets.toml
+.streamlit/*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
